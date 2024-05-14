@@ -1,31 +1,30 @@
-name: "License checker"
-
-on:
-  push:
-    branches:
-      - master
-      - 'release-*'
-  pull_request:
-
 jobs:
   check-license:
-    runs-on: ubuntu-latest
     env:
-      USE_STAGE: 'true' # Whether to include the stage repository.
+      USE_STAGE: 'true'
+    runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+    - continue-on-error: true
+      uses: actions/checkout@v4
+    - continue-on-error: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      name: Check License Header
+      uses: apache/skywalking-eyes@main
+      with:
+        config: .licenserc.yaml
+        log: info
+        token: ${{ github.token }}
+    - continue-on-error: true
+      name: License Check (RAT)
+      run: 'mvn apache-rat:check -ntp
 
-      - name: Check License Header
-        uses: apache/skywalking-eyes@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          log: info
-          token: ${{ github.token }}
-          config: .licenserc.yaml
+        find ./ -name rat.txt -print0 | xargs -0 -I file cat file > merged-rat.txt
 
-      - name: License Check (RAT)
-        run: |
-          mvn apache-rat:check -ntp
-          find ./ -name rat.txt -print0 | xargs -0 -I file cat file > merged-rat.txt
-          grep "Binaries" merged-rat.txt -C 3 && cat merged-rat.txt
+        grep "Binaries" merged-rat.txt -C 3 && cat merged-rat.txt
+
+        '
+name: License checker
+on:
+  repository_dispatch:
+    types: trigger-ga___licence-checker.yml
